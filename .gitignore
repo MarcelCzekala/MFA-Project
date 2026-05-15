@@ -11,3 +11,5 @@ target/
 # Docker / Database
 mysql_data/
 .env
+
+.DS_Store
