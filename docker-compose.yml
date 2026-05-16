@@ -7,6 +7,7 @@ services:
       MYSQL_USER: mfa_user
       MYSQL_PASSWORD: mfa_pass
       MYSQL_ROOT_PASSWORD: root_pass
+      TZ: Europe/Warsaw
     ports:
       - "3306:3306"
     volumes:
@@ -21,7 +22,8 @@ services:
     build: .
     container_name: mfa-backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/mfa_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      TZ: Europe/Warsaw
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/mfa_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Europe/Warsaw
       SPRING_DATASOURCE_USERNAME: mfa_user
       SPRING_DATASOURCE_PASSWORD: mfa_pass
       SERVER_ADDRESS: 0.0.0.0
