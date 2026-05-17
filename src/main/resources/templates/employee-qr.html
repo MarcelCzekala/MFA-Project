@@ -45,11 +45,34 @@
             display: block;
             margin-top: 18px;
             padding: 12px;
-            background: #16a34a;
             color: white;
             text-decoration: none;
             border-radius: 8px;
             font-weight: bold;
+        }
+
+        .refresh-button {
+            background: #16a34a;
+        }
+
+        .password-button {
+            background: #2563eb;
+        }
+
+        .logout-button {
+            background: #64748b;
+        }
+
+        .refresh-button:hover {
+            background: #15803d;
+        }
+
+        .password-button:hover {
+            background: #1d4ed8;
+        }
+
+        .logout-button:hover {
+            background: #475569;
         }
     </style>
 </head>
@@ -77,7 +100,9 @@
         <span th:text="${expiresAt}"></span>
     </p>
 
-    <a th:href="@{'/employee/qr/' + ${employeeId}}">Odśwież kod</a>
+    <a class="refresh-button" th:href="@{'/employee/qr/' + ${employeeId}}">Odśwież kod</a>
+    <a class="password-button" th:href="@{'/employee/change-password/' + ${employeeId}}">Zmień hasło</a>
+    <a class="logout-button" href="/employee/login">Wyloguj</a>
 </div>
 
 <script>

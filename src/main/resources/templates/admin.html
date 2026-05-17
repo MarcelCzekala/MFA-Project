@@ -31,37 +31,56 @@
     <div id="addUserForm" class="collapse mb-4" th:classappend="${showAddEmployeeForm} ? ' show'">
         <div class="card card-body shadow-sm">
             <h3 class="h5 mb-3">New user</h3>
+
             <form th:action="@{/admin/employees}" th:object="${employeeForm}" method="post">
                 <div class="row g-3">
+
                     <div class="col-md-6">
                         <label class="form-label" for="fullName">Full Name</label>
                         <input id="fullName" class="form-control" type="text" th:field="*{fullName}">
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label" for="role">Role</label>
                         <input id="role" class="form-control" type="text" th:field="*{role}">
                     </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="login">Login</label>
+                        <input id="login" class="form-control" type="text" th:field="*{login}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="password">Password</label>
+                        <input id="password" class="form-control" type="password" th:field="*{password}">
+                    </div>
+
                     <div class="col-md-6">
                         <label class="form-label" for="nfcUid">NFC UID</label>
                         <input id="nfcUid" class="form-control" type="text" th:field="*{nfcUid}">
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label" for="fingerprintId">Fingerprint ID</label>
                         <input id="fingerprintId" class="form-control" type="text" th:field="*{fingerprintId}">
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label" for="qrSecret">QR Secret</label>
                         <input id="qrSecret" class="form-control" type="text" th:field="*{qrSecret}">
                     </div>
+
                     <div class="col-12">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" th:field="*{active}" id="activeNew">
                             <label class="form-check-label" for="activeNew">Active</label>
                         </div>
                     </div>
+
                     <div class="col-12">
                         <button type="submit" class="btn btn-success">Save User</button>
                     </div>
+
                 </div>
             </form>
         </div>
@@ -74,6 +93,7 @@
                 <th>ID</th>
                 <th>Full Name</th>
                 <th>Role</th>
+                <th>Login</th>
                 <th>NFC UID</th>
                 <th>Fingerprint ID</th>
                 <th>QR Secret</th>
@@ -81,11 +101,13 @@
                 <th>Actions</th>
             </tr>
             </thead>
+
             <tbody id="usersTableBody">
             <tr th:each="employee : ${employees}"
                 th:attr="data-id=${employee.id},
                          data-name=${employee.fullName},
                          data-role=${employee.role},
+                         data-login=${employee.login},
                          data-nfc=${employee.nfcUid},
                          data-fp=${employee.fingerprintId},
                          data-qr=${employee.qrSecret},
@@ -93,6 +115,7 @@
                 <td th:text="${employee.id}">1</td>
                 <td th:text="${employee.fullName}">Name</td>
                 <td th:text="${employee.role}">Role</td>
+                <td th:text="${employee.login} ?: '—'">login</td>
                 <td th:text="${employee.nfcUid} ?: '—'">—</td>
                 <td th:text="${employee.fingerprintId} ?: '—'">—</td>
                 <td th:text="${employee.qrSecret}">QR</td>
@@ -107,6 +130,7 @@
     </div>
 
     <h2 class="h4 mb-3">Access Logs <small class="text-muted">(live)</small></h2>
+
     <div class="table-responsive">
         <table class="table table-striped table-bordered table-hover bg-white shadow-sm">
             <thead class="table-light">
@@ -118,13 +142,16 @@
                 <th>Message</th>
             </tr>
             </thead>
+
             <tbody id="logsTableBody">
             <tr th:each="log : ${logs}">
                 <td th:text="${#temporals.format(log.timestamp, 'yyyy-MM-dd HH:mm:ss')}">time</td>
                 <td th:text="${log.method}">MFA</td>
                 <td>
                     <span th:text="${log.status}"
-                          th:classappend="${log.status == 'SUCCESS' or log.status == 'GRANTED'} ? 'log-success' : 'log-denied'">SUCCESS</span>
+                          th:classappend="${log.status == 'SUCCESS' or log.status == 'GRANTED'} ? 'log-success' : 'log-denied'">
+                        SUCCESS
+                    </span>
                 </td>
                 <td th:text="${log.employee != null ? log.employee.fullName : 'Unknown'}">Unknown</td>
                 <td th:text="${log.message}">message</td>
@@ -137,41 +164,62 @@
 <div class="modal fade" id="editUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
+
             <div class="modal-header">
                 <h5 class="modal-title">Edit user</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+
             <div class="modal-body">
                 <input type="hidden" id="editUserId">
+
                 <div class="mb-3">
                     <label class="form-label" for="editFullName">Full Name</label>
                     <input id="editFullName" class="form-control" type="text">
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label" for="editRole">Role</label>
                     <input id="editRole" class="form-control" type="text">
                 </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="editLogin">Login</label>
+                    <input id="editLogin" class="form-control" type="text">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="editPassword">New password</label>
+                    <input id="editPassword" class="form-control" type="password"
+                           placeholder="Leave empty to keep current password">
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label" for="editNfcUid">NFC UID</label>
                     <input id="editNfcUid" class="form-control" type="text">
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label" for="editFingerprintId">Fingerprint ID</label>
                     <input id="editFingerprintId" class="form-control" type="text">
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label" for="editQrSecret">QR Secret</label>
                     <input id="editQrSecret" class="form-control" type="text">
                 </div>
+
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="editActive">
                     <label class="form-check-label" for="editActive">Active</label>
                 </div>
             </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="saveEditBtn">Save changes</button>
             </div>
+
         </div>
     </div>
 </div>
@@ -179,6 +227,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
 <script>
     const editModal = new bootstrap.Modal(document.getElementById('editUserModal'));
     const pageAlert = document.getElementById('pageAlert');
@@ -187,7 +236,9 @@
         pageAlert.textContent = text;
         pageAlert.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
         pageAlert.classList.remove('d-none');
-        setTimeout(function () { pageAlert.classList.add('d-none'); }, 4000);
+        setTimeout(function () {
+            pageAlert.classList.add('d-none');
+        }, 4000);
     }
 
     function statusClass(status) {
@@ -197,23 +248,29 @@
     function prependLog(log) {
         const tbody = document.getElementById('logsTableBody');
         const tr = document.createElement('tr');
+
         let ts = log.timestamp || '';
+
         if (typeof ts === 'string') {
             ts = ts.replace('T', ' ').substring(0, 19);
         }
+
         tr.innerHTML =
             '<td>' + ts + '</td>' +
             '<td>' + (log.method || '') + '</td>' +
             '<td><span class="' + statusClass(log.status) + '">' + (log.status || '') + '</span></td>' +
             '<td>' + (log.employeeName || 'Unknown') + '</td>' +
             '<td>' + (log.message || '') + '</td>';
+
         tbody.insertBefore(tr, tbody.firstChild);
     }
 
     function connectLogsSocket() {
         const socket = new SockJS('/ws');
         const client = Stomp.over(socket);
+
         client.debug = function () {};
+
         client.connect({}, function () {
             client.subscribe('/topic/logs', function (msg) {
                 prependLog(JSON.parse(msg.body));
@@ -225,28 +282,34 @@
 
     document.getElementById('usersTableBody').addEventListener('click', function (e) {
         const row = e.target.closest('tr');
+
         if (!row) return;
 
         if (e.target.classList.contains('btn-edit')) {
             document.getElementById('editUserId').value = row.dataset.id;
             document.getElementById('editFullName').value = row.dataset.name || '';
             document.getElementById('editRole').value = row.dataset.role || '';
+            document.getElementById('editLogin').value = row.dataset.login || '';
+            document.getElementById('editPassword').value = '';
             document.getElementById('editNfcUid').value = row.dataset.nfc || '';
             document.getElementById('editFingerprintId').value = row.dataset.fp || '';
             document.getElementById('editQrSecret').value = row.dataset.qr || '';
             document.getElementById('editActive').checked = row.dataset.active === 'true';
+
             editModal.show();
         }
 
         if (e.target.classList.contains('btn-delete')) {
             const id = row.dataset.id;
+
             if (!confirm('Are you sure?')) {
                 return;
             }
-            fetch('/api/users/' + id, { method: 'DELETE' })
+
+            fetch('/api/users/' + id, {method: 'DELETE'})
                 .then(function (r) {
                     if (r.status === 200) {
-                        row.remove(); // remove user from list
+                        row.remove();
                         showAlert('User deleted.', true);
                     } else {
                         showAlert('Could not delete user.', false);
@@ -260,17 +323,21 @@
 
     document.getElementById('saveEditBtn').addEventListener('click', function () {
         const id = document.getElementById('editUserId').value;
+
         const body = {
             fullName: document.getElementById('editFullName').value,
             role: document.getElementById('editRole').value,
+            login: document.getElementById('editLogin').value,
+            password: document.getElementById('editPassword').value,
             nfcUid: document.getElementById('editNfcUid').value,
             fingerprintId: document.getElementById('editFingerprintId').value,
             qrSecret: document.getElementById('editQrSecret').value,
             active: document.getElementById('editActive').checked
         };
+
         fetch('/api/users/' + id, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body)
         })
             .then(function (r) {
@@ -279,24 +346,31 @@
             })
             .then(function (user) {
                 const row = document.querySelector('tr[data-id="' + id + '"]');
+
                 if (row) {
                     row.dataset.name = user.fullName;
                     row.dataset.role = user.role;
+                    row.dataset.login = user.login || '';
                     row.dataset.nfc = user.nfcUid || '';
                     row.dataset.fp = user.fingerprintId || '';
                     row.dataset.qr = user.qrSecret || '';
                     row.dataset.active = user.active;
+
                     row.cells[1].textContent = user.fullName;
                     row.cells[2].textContent = user.role;
-                    row.cells[3].textContent = user.nfcUid || '—';
-                    row.cells[4].textContent = user.fingerprintId || '—';
-                    row.cells[5].textContent = user.qrSecret;
-                    row.cells[6].textContent = user.active ? 'Yes' : 'No';
+                    row.cells[3].textContent = user.login || '—';
+                    row.cells[4].textContent = user.nfcUid || '—';
+                    row.cells[5].textContent = user.fingerprintId || '—';
+                    row.cells[6].textContent = user.qrSecret;
+                    row.cells[7].textContent = user.active ? 'Yes' : 'No';
                 }
+
                 editModal.hide();
                 showAlert('User updated.', true);
             })
-            .catch(function () { showAlert('Could not save user.', false); });
+            .catch(function () {
+                showAlert('Could not save user.', false);
+            });
     });
 
     connectLogsSocket();

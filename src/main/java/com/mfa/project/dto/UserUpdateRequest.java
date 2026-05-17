@@ -14,6 +14,8 @@ public class UserUpdateRequest {
     private String fingerprintId;
     private String qrSecret;
     private boolean active = true;
+    private String login;
+    private String password;
 
     public String getFullName() {
         return fullName;
@@ -62,4 +64,21 @@ public class UserUpdateRequest {
     public void setActive(boolean active) {
         this.active = active;
     }
+    public String getLogin() {
+        return login;
+    }
+
+    public void setLogin(String login) {
+        this.login = login;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+
 }

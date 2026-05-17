@@ -29,11 +29,14 @@ public class AdminController {
         if (!model.containsAttribute("employeeForm")) {
             model.addAttribute("employeeForm", new EmployeeForm());
         }
+
         if (!model.containsAttribute("showAddEmployeeForm")) {
             model.addAttribute("showAddEmployeeForm", false);
         }
+
         model.addAttribute("employees", employeeService.getAllEmployees());
         model.addAttribute("logs", accessLogService.getAllLogs());
+
         return "admin";
     }
 
@@ -42,23 +45,29 @@ public class AdminController {
             @Valid @ModelAttribute("employeeForm") EmployeeForm employeeForm,
             BindingResult bindingResult,
             RedirectAttributes redirectAttributes) {
+
         if (bindingResult.hasErrors()) {
             redirectAttributes.addFlashAttribute(
                     "org.springframework.validation.BindingResult.employeeForm", bindingResult);
             redirectAttributes.addFlashAttribute("employeeForm", employeeForm);
             redirectAttributes.addFlashAttribute("showAddEmployeeForm", true);
             redirectAttributes.addFlashAttribute("error", "Please correct the form errors.");
+
             return "redirect:/admin";
         }
+
         try {
             employeeService.createEmployee(employeeForm);
             redirectAttributes.addFlashAttribute("success", "The employee was saved successfully.");
         } catch (DataIntegrityViolationException ex) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Could not save the employee: duplicate NFC UID, Fingerprint ID, or QR Secret.");
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Could not save the employee: duplicate NFC UID, Fingerprint ID, QR Secret or login."
+            );
             redirectAttributes.addFlashAttribute("employeeForm", employeeForm);
             redirectAttributes.addFlashAttribute("showAddEmployeeForm", true);
         }
+
         return "redirect:/admin";
     }
 }

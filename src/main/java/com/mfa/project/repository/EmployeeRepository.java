@@ -17,4 +17,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     // find the highest fingerprint slot number in db
     @Query("SELECT MAX(CAST(e.fingerprintId AS int)) FROM Employee e")
     Integer findMaxFingerprintId();
+
+    Optional<Employee> findByLogin(String login);
 }

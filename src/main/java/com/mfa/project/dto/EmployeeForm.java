@@ -21,6 +21,12 @@ public class EmployeeForm {
     @NotBlank(message = "QR secret is required")
     private String qrSecret;
 
+    @NotBlank(message = "Login is required")
+    private String login;
+
+    @NotBlank(message = "Password is required")
+    private String password;
+
     private boolean active = true;
 
     public String getFullName() {
@@ -61,6 +67,22 @@ public class EmployeeForm {
 
     public void setQrSecret(String qrSecret) {
         this.qrSecret = qrSecret;
+    }
+
+    public String getLogin() {
+        return login;
+    }
+
+    public void setLogin(String login) {
+        this.login = login;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public boolean isActive() {
