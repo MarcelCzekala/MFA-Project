@@ -8,9 +8,9 @@
 #include <Adafruit_Fingerprint.h>
 #include <HardwareSerial.h>
 
-static const char *WIFI_SSID = "iPhone-marcel";
-static const char *WIFI_PASSWORD = "pies12345";
-static const char *SERVER_HOST = "172.20.10.6"; 
+static const char *WIFI_SSID = "hostname";
+static const char *WIFI_PASSWORD = "password";
+static const char *SERVER_HOST = "host ip";
 static const uint16_t SERVER_PORT = 8080;
 
 static const int PIN_RFID_SS = 5;
