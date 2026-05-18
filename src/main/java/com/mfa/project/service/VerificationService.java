@@ -40,4 +40,8 @@ public class VerificationService {
         logService.saveAndPush(employee, "MFA", "SUCCESS", "NFC and fingerprint verified");
         return new VerifyResponse(true, "Access granted", employee.getFullName());
     }
+
+    public boolean checkCardExists(String nfcUid) {
+        return employeeService.findByNfcUid(nfcUid).isPresent();
+    }
 }

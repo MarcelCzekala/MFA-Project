@@ -8,42 +8,37 @@
 #include <Adafruit_Fingerprint.h>
 #include <HardwareSerial.h>
 
-// wifi and server config
-static const char *WIFI_SSID = "ssid";
-static const char *WIFI_PASSWORD = "password";
-static const char *SERVER_HOST = "host_ip";
+static const char *WIFI_SSID = "iPhone-marcel";
+static const char *WIFI_PASSWORD = "pies12345";
+static const char *SERVER_HOST = "172.20.10.6"; 
 static const uint16_t SERVER_PORT = 8080;
 
-// pins for rfid
 static const int PIN_RFID_SS = 5;
 static const int PIN_RFID_RST = 14;
 static const int PIN_RFID_SCK = 18;
 static const int PIN_RFID_MISO = 19;
 static const int PIN_RFID_MOSI = 23;
 
-// pins for screen and sound
 static const int PIN_LCD_SDA = 21;
 static const int PIN_LCD_SCL = 22;
 static const int PIN_BUZZER = 13; 
 
-// pins for joystick
 static const int PIN_JOY_VRX = 34;
-static const int PIN_JOY_SW = 32;
+static const int PIN_JOY_SW = 32; 
 
-// timers
 static const uint32_t WIFI_RETRY_MS = 10000;
 static const uint32_t RESULT_MS = 3500;
 static const uint32_t JOY_DEBOUNCE_MS = 280;
-static const uint32_t HTTP_TIMEOUT_MS = 8000;
+static const uint32_t HTTP_TIMEOUT_MS = 5000; 
 static const int MENU_LEFT = 1000;
 static const int MENU_RIGHT = 3000;
+static const unsigned long RESET_HOLD_MS = 5000;
 
 MFRC522 rfid(PIN_RFID_SS, PIN_RFID_RST);
 HardwareSerial fingerSerial(2);
 Adafruit_Fingerprint finger(&fingerSerial);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// app states
 enum class AppState : uint8_t {
   HOME,
   VERIFY_NFC,
@@ -54,7 +49,9 @@ enum class AppState : uint8_t {
   ENROLL_NFC,
   ENROLL_FINGER,
   ENROLL_HTTP,
-  ENROLL_RESULT
+  ENROLL_RESULT,
+  CONFIRM_CLEAR_MEM,
+  CLEAR_MEM_PROCESS
 };
 
 enum class EnrollFingerPhase : uint8_t {
@@ -74,29 +71,30 @@ static unsigned long lastJoySwMs = 0;
 static unsigned long resultUntilMs = 0;
 static unsigned long enrollDeadlineMs = 0;
 static unsigned long removeFingerDeadlineMs = 0;
+static unsigned long menuNavigationDelayMs = 0;
+static unsigned long swPressedStartMs = 0;
 
 static String scannedNfcUid = "";
 static int scannedFingerId = -1;
 static int enrollNextId = -1;
 static String enrollNfcUid = "";
 
-static bool menuPickVerify = true;
-static bool menuStableVerify = true;
-static bool menuDrawnVerify = true;
+static int currentMenuIndex = 0; 
+static int lastDrawnMenuIndex = -1;
+static bool rfidNeedsWakeup = true;
 
-// make sounds
 void playFeedback(String effect) {
   if (effect == "SUCCESS") {
-    tone(PIN_BUZZER, 1000); delay(150); // happy beeps
+    tone(PIN_BUZZER, 1000); delay(150);
     tone(PIN_BUZZER, 1500); delay(150);
     noTone(PIN_BUZZER);
   } 
   else if (effect == "ERROR") {
-    tone(PIN_BUZZER, 300); delay(800); // sad long beep
+    tone(PIN_BUZZER, 300); delay(800);
     noTone(PIN_BUZZER);
   } 
   else if (effect == "CLICK") {
-    tone(PIN_BUZZER, 2500); delay(30); // tiny click
+    tone(PIN_BUZZER, 2500); delay(30);
     noTone(PIN_BUZZER);
   }
 }
@@ -121,15 +119,10 @@ static void logHttpError(const char *step, int code, const String &detail) {
   Serial.println();
 }
 
-// connect wifi if lost
 static void maintainWifi() {
-  if (WiFi.status() == WL_CONNECTED) {
-    return;
-  }
+  if (WiFi.status() == WL_CONNECTED) return;
   unsigned long now = millis();
-  if (now - lastWifiRetryMs < WIFI_RETRY_MS) {
-    return;
-  }
+  if (now - lastWifiRetryMs < WIFI_RETRY_MS) return;
   lastWifiRetryMs = now;
   WiFi.disconnect();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -137,18 +130,30 @@ static void maintainWifi() {
 
 static void setupWifiOnce() {
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect(true);
+  delay(1000);
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
+  Serial.print("\n[Wi-Fi] Connecting to: ");
+  Serial.println(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000UL) {
-    delay(250);
+    delay(1000);
+    Serial.print("[Wi-Fi] Current Status Code: ");
+    Serial.println(WiFi.status());
+  }
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("[Wi-Fi] SUCCESS! Connected. IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("[Wi-Fi] CRITICAL: Connection timeout after 20 seconds!");
   }
 }
 
-// get card serial number
 static String readCardUid() {
-  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) {
-    return "";
-  }
+  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return "";
   String uid = "";
   for (byte i = 0; i < rfid.uid.size; i++) {
     if (rfid.uid.uidByte[i] < 0x10) uid += "0";
@@ -179,7 +184,6 @@ static bool enrollCaptureToSlot(uint8_t bufferIndex) {
   return false;
 }
 
-// ask if user is allowed
 static bool httpVerifyMfa(const String &nfcUid, int fingerId, bool &granted, String &msg) {
   granted = false;
   msg = "Network error";
@@ -209,7 +213,6 @@ static bool httpVerifyMfa(const String &nfcUid, int fingerId, bool &granted, Str
   return true;
 }
 
-// get next free id from server
 static bool httpGetNextId(int &nextId, String &err) {
   nextId = -1;
   if (WiFi.status() != WL_CONNECTED) return false;
@@ -230,7 +233,6 @@ static bool httpGetNextId(int &nextId, String &err) {
   return true;
 }
 
-// save user 
 static bool httpRegisterUser(int nextId, const String &nfcUid, int fingerId, String &err) {
   if (WiFi.status() != WL_CONNECTED) return false;
 
@@ -256,18 +258,31 @@ static void goHome() {
   appState = AppState::HOME;
   scannedNfcUid = "";
   scannedFingerId = -1;
-  lcdTwo("> VERIFY", "  ENROLL");
-  menuPickVerify = true;
-  menuStableVerify = true;
-  menuDrawnVerify = true;
+  currentMenuIndex = 0;
+  lastDrawnMenuIndex = -1;
+  swPressedStartMs = 0;
+  rfidNeedsWakeup = true; 
 }
 
 static void readJoystickMenu() {
   int v = analogRead(PIN_JOY_VRX);
-  if (v < MENU_LEFT) menuPickVerify = true;
-  else if (v > MENU_RIGHT) menuPickVerify = false;
-  else menuPickVerify = menuStableVerify;
-  menuStableVerify = menuPickVerify;
+  unsigned long now = millis();
+  
+  if (now - menuNavigationDelayMs > 250) {
+    if (v < MENU_LEFT) {
+      if (currentMenuIndex > 0) {
+        currentMenuIndex--;
+        menuNavigationDelayMs = now;
+        playFeedback("CLICK");
+      }
+    } else if (v > MENU_RIGHT) {
+      if (currentMenuIndex < 2) {
+        currentMenuIndex++;
+        menuNavigationDelayMs = now;
+        playFeedback("CLICK");
+      }
+    }
+  }
 }
 
 static bool joyPressed() {
@@ -275,31 +290,36 @@ static bool joyPressed() {
   unsigned long now = millis();
   if (now - lastJoySwMs < JOY_DEBOUNCE_MS) return false;
   lastJoySwMs = now;
-  playFeedback("CLICK"); // beep on click
+  playFeedback("CLICK");
   return true;
 }
 
 static void drawHomeMenu() {
-  if (menuPickVerify) lcdTwo("> VERIFY", "  ENROLL");
-  else lcdTwo("  VERIFY", "> ENROLL");
+  if (currentMenuIndex == 0) lcdTwo("> 1.VERIFY", "  2.ENROLL");
+  else if (currentMenuIndex == 1) lcdTwo("  1.VERIFY", "> 2.ENROLL");
+  else if (currentMenuIndex == 2) lcdTwo("  2.ENROLL", "> 3.CLEAR MEMORY");
 }
 
 static void tickHome() {
   readJoystickMenu();
-  if (menuPickVerify != menuDrawnVerify) {
-    menuDrawnVerify = menuPickVerify;
+  if (currentMenuIndex != lastDrawnMenuIndex) {
+    lastDrawnMenuIndex = currentMenuIndex;
     drawHomeMenu();
   }
   if (!joyPressed()) return;
-  if (menuPickVerify) {
+  
+  if (currentMenuIndex == 0) {
     appState = AppState::VERIFY_NFC;
     lcdTwo("Scan NFC card", "...");
-  } else {
+  } else if (currentMenuIndex == 1) {
     appState = AppState::ENROLL_FETCH_ID;
     lcdTwo("Fetching ID...", "Please wait");
+  } else if (currentMenuIndex == 2) {
+    appState = AppState::CONFIRM_CLEAR_MEM;
+    lcdTwo("Clear memory?", "Click to confirm");
   }
 }
-// check with server if this card is registered
+
 static bool httpCheckCard(String uid) {
   if (WiFi.status() != WL_CONNECTED) return false;
 
@@ -320,25 +340,25 @@ static bool httpCheckCard(String uid) {
 }
 
 static void tickVerifyNfc() {
+  if (rfidNeedsWakeup) {
+    rfid.PCD_Init();
+    rfidNeedsWakeup = false;
+  }
+
   String uid = readCardUid();
   if (uid.length() == 0) return;
-
   lcdTwo("Checking card", "...");
   
   if (httpCheckCard(uid)) {
-    // card found in db!
     scannedNfcUid = uid;
     appState = AppState::VERIFY_FINGER;
     lcdTwo("Card OK", "Scan finger");
     playFeedback("CLICK");
-    Serial.println("[NFC] card recognized");
   } else {
-    // card not in db - reject immediately
     lcdTwo("Unknown Card", "Access Denied");
     playFeedback("ERROR");
     appState = AppState::VERIFY_RESULT;
     resultUntilMs = millis() + 2500;
-    Serial.println("[NFC] unknown card rejected");
   }
 }
 
@@ -350,19 +370,17 @@ static void tickVerifyFinger() {
   lcdTwo("Sending...", "Please wait");
 }
 
-// verify with sounds
 static void tickVerifyHttp() {
-  bool ok = false;
+  bool ok = false, granted = false;
   String msg = "";
-  bool granted = false;
   ok = httpVerifyMfa(scannedNfcUid, scannedFingerId, granted, msg);
 
   if (ok && granted) {
     lcdTwo("Success", "Welcome!");
-    playFeedback("SUCCESS"); // win sound
+    playFeedback("SUCCESS");
   } else {
     lcdTwo("Failed", "Access Denied");
-    playFeedback("ERROR"); // fail sound
+    playFeedback("ERROR");
   }
   appState = AppState::VERIFY_RESULT;
   resultUntilMs = millis() + RESULT_MS;
@@ -375,13 +393,24 @@ static void tickVerifyResult() {
 static void tickEnrollFetchId() {
   String err;
   int id = -1;
+
+  if (WiFi.status() != WL_CONNECTED) {
+    lcdTwo("No Wi-Fi Link", "Reconnecting...");
+    playFeedback("ERROR");
+    Serial.println("[DEBUG] Fetch ID failed because Wi-Fi status is NOT connected.");
+    appState = AppState::ENROLL_RESULT;
+    resultUntilMs = millis() + RESULT_MS;
+    return;
+  }
+
   if (!httpGetNextId(id, err)) {
-    lcdTwo("ID fetch fail", "Check server");
+    lcdTwo("Server Timeout", "Check Spring");
     playFeedback("ERROR");
     appState = AppState::ENROLL_RESULT;
     resultUntilMs = millis() + RESULT_MS;
     return;
   }
+  
   enrollNextId = id;
   appState = AppState::ENROLL_NFC;
   lcdTwo("Auto ID:", String(id));
@@ -390,6 +419,11 @@ static void tickEnrollFetchId() {
 }
 
 static void tickEnrollNfc() {
+  if (rfidNeedsWakeup) {
+    rfid.PCD_Init();
+    rfidNeedsWakeup = false;
+  }
+
   String uid = readCardUid();
   if (uid.length() == 0) return;
   enrollNfcUid = uid;
@@ -445,15 +479,14 @@ static void tickEnrollFinger() {
   }
 }
 
-// enroll with sounds
 static void tickEnrollHttp() {
   String err;
   if (httpRegisterUser(enrollNextId, enrollNfcUid, enrollNextId, err)) {
     lcdTwo("Enroll OK", "User saved");
-    playFeedback("SUCCESS"); // win sound
+    playFeedback("SUCCESS");
   } else {
     lcdTwo("Save failed", "Try again");
-    playFeedback("ERROR"); // fail sound
+    playFeedback("ERROR");
   }
   appState = AppState::ENROLL_RESULT;
   resultUntilMs = millis() + RESULT_MS;
@@ -463,27 +496,68 @@ static void tickEnrollResult() {
   if (millis() >= resultUntilMs) goHome();
 }
 
+static void tickConfirmClearMem() {
+  if (joyPressed()) {
+    appState = AppState::CLEAR_MEM_PROCESS;
+    lcdTwo("Wiping memory", "Please wait...");
+  }
+}
+
+static void tickClearMemProcess() {
+  if (finger.emptyDatabase() == FINGERPRINT_OK) {
+    lcdTwo("Database Empty", "Wipe Complete");
+    playFeedback("SUCCESS");
+  } else {
+    lcdTwo("Wipe Failed", "Driver Error");
+    playFeedback("ERROR");
+  }
+  delay(2000);
+  goHome();
+}
+
+void checkGlobalReset() {
+  bool currentSwState = digitalRead(PIN_JOY_SW);
+  if (currentSwState == LOW) {
+    if (swPressedStartMs == 0) swPressedStartMs = millis();
+    else if (millis() - swPressedStartMs >= RESET_HOLD_MS) {
+      if (appState != AppState::HOME) {
+        playFeedback("ERROR");
+        goHome();
+        delay(600);
+      }
+    }
+  } else {
+    swPressedStartMs = 0;
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_JOY_SW, INPUT_PULLUP);
-  pinMode(PIN_BUZZER, OUTPUT); // start buzzer
+  pinMode(PIN_BUZZER, OUTPUT);
 
   Wire.begin(PIN_LCD_SDA, PIN_LCD_SCL);
   lcd.init();
   lcd.backlight();
 
   SPI.begin(PIN_RFID_SCK, PIN_RFID_MISO, PIN_RFID_MOSI, PIN_RFID_SS);
-  rfid.PCD_Init(); // start rfid reader
+  SPI.setFrequency(1000000); 
+  rfid.PCD_Init();
+  rfid.PCD_DumpVersionToSerial(); 
 
   fingerSerial.begin(57600, SERIAL_8N1, 26, 27);
-  finger.verifyPassword();
+  if (finger.verifyPassword()) {
+    finger.setSecurityLevel(2); 
+  }
 
   setupWifiOnce();
   goHome();
 }
 
 void loop() {
+  checkGlobalReset();
   maintainWifi();
+  
   switch (appState) {
     case AppState::HOME: tickHome(); break;
     case AppState::VERIFY_NFC: tickVerifyNfc(); break;
@@ -495,6 +569,8 @@ void loop() {
     case AppState::ENROLL_FINGER: tickEnrollFinger(); break;
     case AppState::ENROLL_HTTP: tickEnrollHttp(); break;
     case AppState::ENROLL_RESULT: tickEnrollResult(); break;
+    case AppState::CONFIRM_CLEAR_MEM: tickConfirmClearMem(); break;
+    case AppState::CLEAR_MEM_PROCESS: tickClearMemProcess(); break;
   }
   delay(1);
 }
