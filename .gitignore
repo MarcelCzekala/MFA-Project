@@ -13,3 +13,6 @@ mysql_data/
 .env
 
 .DS_Store
+
+.venv/
+venv/
