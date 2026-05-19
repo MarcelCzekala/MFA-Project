@@ -1,61 +1,41 @@
 package com.mfa.project.controller;
 
-import com.mfa.project.dto.UserUpdateRequest;
 import com.mfa.project.entity.Employee;
-import com.mfa.project.repository.EmployeeRepository;
 import com.mfa.project.service.EmployeeService;
-import jakarta.validation.Valid;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
+import com.mfa.project.service.LogService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
+@RequestMapping("/api/verify")
 public class UserController {
 
     private final EmployeeService employeeService;
-    private final EmployeeRepository employeeRepository;
+    private final LogService logService;
 
-    public UserController(EmployeeService employeeService, EmployeeRepository employeeRepository) {
+    public UserController(EmployeeService employeeService, LogService logService) {
         this.employeeService = employeeService;
-        this.employeeRepository = employeeRepository;
+        this.logService = logService;
     }
 
-    @GetMapping("/api/enroll/next-available-id")
-    public ResponseEntity<Map<String, Integer>> getNextId() {
-        Integer maxId = employeeRepository.findMaxFingerprintId();
-        int next = (maxId == null) ? 1 : maxId + 1;
-        return ResponseEntity.ok(Map.of("nextId", next));
-    }
-
-    @GetMapping("/api/verify/card/{uid}")
+    @GetMapping("/card/{uid}")
     public ResponseEntity<Map<String, Boolean>> checkCard(@PathVariable String uid) {
-        boolean exists = employeeRepository.existsByNfcUid(uid);
-        return ResponseEntity.ok(Map.of("exists", exists));
-    }
+        Optional<Employee> employeeOpt = employeeService.findByNfcUid(uid);
+        boolean exists = employeeOpt.isPresent();
 
-    @PutMapping("/api/users/{id}")
-    public ResponseEntity<Employee> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
-        try {
-            Employee updated = employeeService.updateUser(id, request);
-            return ResponseEntity.ok(updated);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.notFound().build();
-        } catch (DataIntegrityViolationException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        if (!exists) {
+            logService.saveAndPush(null, "MFA", "FAILURE", "Unauthorized access attempt: Unknown card UID " + uid);
         }
-    }
 
-    @Transactional
-    @DeleteMapping("/api/users/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        if (!employeeRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-        employeeRepository.deleteById(id);
-        return ResponseEntity.ok().build();
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("exists", exists);
+        return ResponseEntity.ok(response);
     }
 }

@@ -24,20 +24,20 @@ public class VerificationService {
             Optional<Employee> byFp = employeeService.findByFingerprintId(fingerprintId);
             Optional<Employee> byNfc = employeeService.findByNfcUid(nfcUid);
             if (byFp.isPresent() && byNfc.isPresent() && !byFp.get().getId().equals(byNfc.get().getId())) {
-                logService.saveAndPush(null, "MFA", "FAILURE", "Card and fingerprint do not match same user");
+                logService.saveAndPush(null, "MFA", "FAILURE", "MFA verification failed: Card and fingerprint mismatch");
                 return new VerifyResponse(false, "Access denied: card and fingerprint belong to different users", null);
             }
-            logService.saveAndPush(null, "MFA", "FAILURE", "No user with this card and fingerprint");
+            logService.saveAndPush(null, "MFA", "FAILURE", "MFA verification failed: User not found");
             return new VerifyResponse(false, "Access denied: user not found", null);
         }
 
         Employee employee = match.get();
         if (!employee.isActive()) {
-            logService.saveAndPush(employee, "MFA", "FAILURE", "User account is inactive");
+            logService.saveAndPush(employee, "MFA", "FAILURE", "MFA verification failed: User account is inactive");
             return new VerifyResponse(false, "Access denied: account inactive", null);
         }
 
-        logService.saveAndPush(employee, "MFA", "SUCCESS", "NFC and fingerprint verified");
+        logService.saveAndPush(employee, "MFA", "SUCCESS", "NFC and fingerprint verified successfully");
         return new VerifyResponse(true, "Access granted", employee.getFullName());
     }
 

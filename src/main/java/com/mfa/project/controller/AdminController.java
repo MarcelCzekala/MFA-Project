@@ -1,73 +1,85 @@
 package com.mfa.project.controller;
 
 import com.mfa.project.dto.EmployeeForm;
-import com.mfa.project.service.AccessLogService;
+import com.mfa.project.dto.UserUpdateRequest;
+import com.mfa.project.entity.Employee;
+import com.mfa.project.repository.AccessLogRepository;
 import com.mfa.project.service.EmployeeService;
 import jakarta.validation.Valid;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Controller
 public class AdminController {
 
     private final EmployeeService employeeService;
-    private final AccessLogService accessLogService;
+    private final AccessLogRepository accessLogRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public AdminController(EmployeeService employeeService, AccessLogService accessLogService) {
+    public AdminController(EmployeeService employeeService,
+                           AccessLogRepository accessLogRepository,
+                           SimpMessagingTemplate messagingTemplate) {
         this.employeeService = employeeService;
-        this.accessLogService = accessLogService;
+        this.accessLogRepository = accessLogRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @GetMapping("/admin")
     public String adminPage(Model model) {
-        if (!model.containsAttribute("employeeForm")) {
-            model.addAttribute("employeeForm", new EmployeeForm());
-        }
-
-        if (!model.containsAttribute("showAddEmployeeForm")) {
-            model.addAttribute("showAddEmployeeForm", false);
-        }
-
         model.addAttribute("employees", employeeService.getAllEmployees());
-        model.addAttribute("logs", accessLogService.getAllLogs());
-
+        model.addAttribute("employeeForm", new EmployeeForm());
+        model.addAttribute("logs", accessLogRepository.findAll());
         return "admin";
     }
 
     @PostMapping("/admin/employees")
-    public String addEmployee(
-            @Valid @ModelAttribute("employeeForm") EmployeeForm employeeForm,
-            BindingResult bindingResult,
-            RedirectAttributes redirectAttributes) {
-
-        if (bindingResult.hasErrors()) {
-            redirectAttributes.addFlashAttribute(
-                    "org.springframework.validation.BindingResult.employeeForm", bindingResult);
-            redirectAttributes.addFlashAttribute("employeeForm", employeeForm);
-            redirectAttributes.addFlashAttribute("showAddEmployeeForm", true);
-            redirectAttributes.addFlashAttribute("error", "Please correct the form errors.");
-
-            return "redirect:/admin";
+    public String createUser(@Valid @ModelAttribute("employeeForm") EmployeeForm form,
+                             BindingResult result,
+                             Model model) {
+        if (result.hasErrors()) {
+            model.addAttribute("employees", employeeService.getAllEmployees());
+            model.addAttribute("logs", accessLogRepository.findAll());
+            model.addAttribute("showAddEmployeeForm", true);
+            return "admin";
         }
-
         try {
-            employeeService.createEmployee(employeeForm);
-            redirectAttributes.addFlashAttribute("success", "The employee was saved successfully.");
-        } catch (DataIntegrityViolationException ex) {
-            redirectAttributes.addFlashAttribute(
-                    "error",
-                    "Could not save the employee: duplicate NFC UID, Fingerprint ID, QR Secret or login."
-            );
-            redirectAttributes.addFlashAttribute("employeeForm", employeeForm);
-            redirectAttributes.addFlashAttribute("showAddEmployeeForm", true);
+            employeeService.createEmployee(form);
+            messagingTemplate.convertAndSend("/topic/users", employeeService.getAllEmployees());
+        } catch (Exception e) {
+            result.rejectValue("login", "error.employeeForm", "Login, NFC UID or Fingerprint ID already exists");
+            model.addAttribute("employees", employeeService.getAllEmployees());
+            model.addAttribute("logs", accessLogRepository.findAll());
+            model.addAttribute("showAddEmployeeForm", true);
+            return "admin";
         }
-
         return "redirect:/admin";
+    }
+
+    @PutMapping("/api/users/{id}")
+    @ResponseBody
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
+        try {
+            Employee updated = employeeService.updateUser(id, request);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/api/users/{id}")
+    @ResponseBody
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        try {
+            employeeService.deleteEmployee(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
