@@ -10,17 +10,19 @@ public class LogEventDto {
     private String status;
     private String employeeName;
     private String message;
+    private String location;
 
     public LogEventDto() {
     }
 
-    public LogEventDto(Long id, LocalDateTime timestamp, String method, String status, String employeeName, String message) {
+    public LogEventDto(Long id, LocalDateTime timestamp, String method, String status, String employeeName, String message, String location) {
         this.id = id;
         this.timestamp = timestamp;
         this.method = method;
         this.status = status;
         this.employeeName = employeeName;
         this.message = message;
+        this.location = location;
     }
 
     public Long getId() {
@@ -69,5 +71,13 @@ public class LogEventDto {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 }

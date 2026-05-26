@@ -1,10 +1,7 @@
 package com.mfa.project.controller;
 
 import com.mfa.project.entity.Employee;
-import com.mfa.project.entity.QrToken;
 import com.mfa.project.repository.EmployeeRepository;
-import com.mfa.project.service.EmployeeAuthService;
-import com.mfa.project.service.QrTokenService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,64 +13,25 @@ import java.util.Optional;
 @RequestMapping("/employee")
 public class EmployeeQrController {
 
-    private final QrTokenService qrTokenService;
-    private final EmployeeAuthService employeeAuthService;
     private final EmployeeRepository employeeRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
-    public EmployeeQrController(QrTokenService qrTokenService,
-                                EmployeeAuthService employeeAuthService,
-                                EmployeeRepository employeeRepository,
+    public EmployeeQrController(EmployeeRepository employeeRepository,
                                 BCryptPasswordEncoder passwordEncoder) {
-        this.qrTokenService = qrTokenService;
-        this.employeeAuthService = employeeAuthService;
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
-    @GetMapping("/login")
-    public String loginPage() {
-        return "employee-login";
-    }
 
-    @PostMapping("/login")
-    public String login(@RequestParam String login,
-                        @RequestParam String password,
-                        Model model) {
 
-        Optional<Employee> employeeOptional = employeeAuthService.login(login, password);
-
-        if (employeeOptional.isEmpty()) {
-            model.addAttribute("error", "Nieprawidłowy login lub hasło.");
-            return "employee-login";
-        }
-
-        Employee employee = employeeOptional.get();
-
-        return "redirect:/employee/qr/" + employee.getId();
-    }
-
-    @GetMapping("/qr/{employeeId}")
-    public String qrPage(@PathVariable Long employeeId, Model model) {
-        QrToken qrToken = qrTokenService.generateTokenForEmployee(employeeId);
-
-        String qrContent = "QR_TOKEN:" + qrToken.getToken();
-        String qrBase64 = qrTokenService.generateQrBase64(qrContent);
-
-        model.addAttribute("employeeId", employeeId);
-        model.addAttribute("token", qrToken.getToken());
-        model.addAttribute("expiresAt", qrToken.getExpiresAt());
-        model.addAttribute("qrBase64", qrBase64);
-
-        return "employee-qr";
-    }
-
+    // show password page
     @GetMapping("/change-password/{employeeId}")
     public String changePasswordPage(@PathVariable Long employeeId, Model model) {
         model.addAttribute("employeeId", employeeId);
         return "employee-change-password";
     }
 
+    // update password
     @PostMapping("/change-password/{employeeId}")
     public String changePassword(@PathVariable Long employeeId,
                                  @RequestParam String oldPassword,
@@ -113,6 +71,6 @@ public class EmployeeQrController {
         employeeRepository.save(employee);
 
         model.addAttribute("success", "Hasło zostało zmienione. Możesz zalogować się ponownie.");
-        return "employee-login";
+        return "redirect:/login?logout";
     }
 }

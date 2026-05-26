@@ -33,9 +33,13 @@ public class AccessLog {
     @Column(nullable = false)
     private String message;
 
+    @Column
+    private String location;
+
     @Column(nullable = false)
     private LocalDateTime timestamp;
 
+    // set time
     @PrePersist
     public void prePersist() {
         this.timestamp = LocalDateTime.now();
@@ -87,5 +91,13 @@ public class AccessLog {
 
     public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 }

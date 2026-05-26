@@ -1,58 +1,96 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>MFA Admin Panel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
         .log-success { color: #198754; font-weight: 600; }
         .log-denied { color: #dc3545; font-weight: 600; }
+        .table-fixed-actions { width: 150px; }
     </style>
 </head>
 <body>
 <div class="container py-4">
-    <h1 class="mb-4">MFA Admin Panel</h1>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">MFA Admin Panel</h1>
+        </div>
+        <form th:action="@{/logout}" method="post" class="m-0">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button class="btn btn-outline-secondary" type="submit">Logout</button>
+        </form>
+    </div>
 
     <div id="pageAlert" class="alert d-none" role="alert"></div>
 
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <h2 class="h4 mb-0">Users</h2>
-        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addUserForm"
-                th:attr="aria-expanded=${showAddEmployeeForm} ? 'true' : 'false'">
-            Add New User
-        </button>
-    </div>
+    <section class="mb-4 text-center">
+        <div class="card card-body shadow-sm mx-auto" style="max-width: 400px;">
+            <h2 class="h5">Your Access QR Code</h2>
+            <img th:if="${qrBase64}" th:src="'data:image/png;base64,' + ${qrBase64}" alt="QR Code" style="width: 260px; height: 260px; margin: 20px auto;">
+            <div th:if="${qrBase64}" class="text-danger fw-bold fs-5">
+                Expires in: <span id="timer">05:00</span>
+            </div>
+            <p th:if="${qrBase64}" class="text-muted small mt-2 mb-0">Token: <span th:text="${token}"></span></p>
+            <p th:if="${qrBase64}" class="text-muted small">Valid until: <span th:text="${expiresAt}"></span></p>
+            <div class="d-grid gap-2 mt-3" th:if="${qrBase64}">
+                <a class="btn btn-success" th:href="@{'/admin'}">Refresh Code</a>
+                <a class="btn btn-primary" th:href="@{'/employee/change-password/' + ${employeeId}}">Change Password</a>
+            </div>
+        </div>
+    </section>
 
-    <div id="addUserForm" class="collapse mb-4" th:classappend="${showAddEmployeeForm} ? ' show'">
-        <div class="card card-body shadow-sm">
-            <h3 class="h5 mb-3">New user</h3>
+    <section sec:authorize="hasAuthority('ROLE_ADMIN')">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h2 class="h4 mb-0">Users</h2>
+            <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addUserForm"
+                    th:attr="aria-expanded=${showAddEmployeeForm} ? 'true' : 'false'">
+                Add New User
+            </button>
+        </div>
 
-            <form th:action="@{/admin/employees}" th:object="${employeeForm}" method="post">
-                <div class="row g-3">
+        <div id="addUserForm" class="collapse mb-4" th:classappend="${showAddEmployeeForm} ? ' show'">
+            <div class="card card-body shadow-sm">
+                <h3 class="h5 mb-3">New User</h3>
 
-                    <div class="col-md-6">
-                        <label class="form-label" for="fullName">Full Name</label>
-                        <input id="fullName" class="form-control" type="text" th:field="*{fullName}">
-                    </div>
+                <form th:action="@{/admin/users}" th:object="${employeeForm}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
-                    <div class="col-md-6">
-                        <label class="form-label" for="role">Role</label>
-                        <input id="role" class="form-control" type="text" th:field="*{role}">
-                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="fullName">Full Name</label>
+                            <input id="fullName" class="form-control" type="text" th:field="*{fullName}">
+                            <div class="text-danger small" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label" for="role">Role</label>
+                            <select id="role" class="form-select" th:field="*{role}">
+                                <option value="STAFF">Staff</option>
+                                <option value="TEAM_LEADER">Team Leader</option>
+                                <option value="ADMIN">Admin</option>
+                            </select>
+                            <div class="text-danger small" th:if="${#fields.hasErrors('role')}" th:errors="*{role}"></div>
+                        </div>
 
                     <div class="col-md-6">
                         <label class="form-label" for="login">Login</label>
                         <input id="login" class="form-control" type="text" th:field="*{login}">
+                        <div class="text-danger small" th:if="${#fields.hasErrors('login')}" th:errors="*{login}"></div>
                     </div>
 
                     <div class="col-md-6">
                         <label class="form-label" for="password">Password</label>
                         <input id="password" class="form-control" type="password" th:field="*{password}">
+                        <div class="text-danger small" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
                     </div>
 
                     <div class="col-md-6">
@@ -63,11 +101,13 @@
                     <div class="col-md-6">
                         <label class="form-label" for="fingerprintId">Fingerprint ID</label>
                         <input id="fingerprintId" class="form-control" type="text" th:field="*{fingerprintId}">
+                        <div class="text-danger small" th:if="${#fields.hasErrors('fingerprintId')}" th:errors="*{fingerprintId}"></div>
                     </div>
 
                     <div class="col-md-6">
                         <label class="form-label" for="qrSecret">QR Secret</label>
                         <input id="qrSecret" class="form-control" type="text" th:field="*{qrSecret}">
+                        <div class="text-danger small" th:if="${#fields.hasErrors('qrSecret')}" th:errors="*{qrSecret}"></div>
                     </div>
 
                     <div class="col-12">
@@ -77,97 +117,100 @@
                         </div>
                     </div>
 
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-success">Save User</button>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-success">Save User</button>
+                        </div>
                     </div>
-
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
-    </div>
 
-    <div class="table-responsive mb-4">
-        <table class="table table-striped table-bordered table-hover bg-white shadow-sm">
-            <thead class="table-light">
-            <tr>
-                <th>ID</th>
-                <th>Full Name</th>
-                <th>Role</th>
-                <th>Login</th>
-                <th>NFC UID</th>
-                <th>Fingerprint ID</th>
-                <th>QR Secret</th>
-                <th>Active</th>
-                <th>Actions</th>
-            </tr>
-            </thead>
+        <div class="table-responsive mb-4">
+            <table class="table table-striped table-bordered table-hover bg-white shadow-sm">
+                <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Full Name</th>
+                    <th>Role</th>
+                    <th>Login</th>
+                    <th>NFC UID</th>
+                    <th>Fingerprint ID</th>
+                    <th>QR Secret</th>
+                    <th>Active</th>
+                    <th class="table-fixed-actions">Actions</th>
+                </tr>
+                </thead>
 
-            <tbody id="usersTableBody">
-            <tr th:each="employee : ${employees}"
-                th:attr="data-id=${employee.id},
-                         data-name=${employee.fullName},
-                         data-role=${employee.role},
-                         data-login=${employee.login},
-                         data-nfc=${employee.nfcUid},
-                         data-fp=${employee.fingerprintId},
-                         data-qr=${employee.qrSecret},
-                         data-active=${employee.active}">
-                <td th:text="${employee.id}">1</td>
-                <td th:text="${employee.fullName}">Name</td>
-                <td th:text="${employee.role}">Role</td>
-                <td th:text="${employee.login} ?: '—'">login</td>
-                <td th:text="${employee.nfcUid} ?: '—'">—</td>
-                <td th:text="${employee.fingerprintId} ?: '—'">—</td>
-                <td th:text="${employee.qrSecret}">QR</td>
-                <td th:text="${employee.active ? 'Yes' : 'No'}">Yes</td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-outline-primary btn-edit">Edit</button>
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-delete">Delete</button>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-    </div>
+                <tbody id="usersTableBody">
+                <tr th:each="employee : ${employees}"
+                    th:attr="data-id=${employee.id},
+                             data-name=${employee.fullName},
+                             data-role=${employee.role},
+                             data-login=${employee.login},
+                             data-nfc=${employee.nfcUid},
+                             data-fp=${employee.fingerprintId},
+                             data-qr=${employee.qrSecret},
+                             data-active=${employee.active}">
+                    <td th:text="${employee.id}">1</td>
+                    <td th:text="${employee.fullName}">Name</td>
+                    <td th:text="${employee.role}">Role</td>
+                    <td th:text="${employee.login} ?: '-'">login</td>
+                    <td th:text="${employee.nfcUid} ?: '-'">-</td>
+                    <td th:text="${employee.fingerprintId} ?: '-'">-</td>
+                    <td th:text="${employee.qrSecret}">QR</td>
+                    <td th:text="${employee.active ? 'Yes' : 'No'}">Yes</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary btn-edit">Edit</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-delete">Delete</button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 
-    <h2 class="h4 mb-3">Access Logs <small class="text-muted">(live)</small></h2>
+    <section sec:authorize="hasAnyAuthority('ROLE_ADMIN', 'ROLE_TEAM_LEADER')">
+        <h2 class="h4 mb-3">Access Logs <small class="text-muted">(live)</small></h2>
 
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered table-hover bg-white shadow-sm">
-            <thead class="table-light">
-            <tr>
-                <th>Timestamp</th>
-                <th>Method</th>
-                <th>Status</th>
-                <th>User</th>
-                <th>Message</th>
-            </tr>
-            </thead>
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered table-hover bg-white shadow-sm">
+                <thead class="table-light">
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    <th>User</th>
+                    <th>Message</th>
+                    <th>Location</th>
+                </tr>
+                </thead>
 
-            <tbody id="logsTableBody">
-            <tr th:each="log : ${logs}">
-                <td th:text="${#temporals.format(log.timestamp, 'yyyy-MM-dd HH:mm:ss')}">time</td>
-                <td th:text="${log.method}">MFA</td>
-                <td>
-                    <span th:text="${log.status}"
-                          th:classappend="${log.status == 'SUCCESS' or log.status == 'GRANTED'} ? 'log-success' : 'log-denied'">
-                        SUCCESS
-                    </span>
-                </td>
-                <td th:text="${log.employee != null ? log.employee.fullName : 'Unknown'}">Unknown</td>
-                <td th:text="${log.message}">message</td>
-            </tr>
-            </tbody>
-        </table>
-    </div>
+                <tbody id="logsTableBody">
+                <tr th:each="log : ${logs}">
+                    <td th:text="${#temporals.format(log.timestamp, 'yyyy-MM-dd HH:mm:ss')}">time</td>
+                    <td th:text="${log.method}">MFA</td>
+                    <td>
+                        <span th:text="${log.status}"
+                              th:classappend="${log.status == 'SUCCESS' or log.status == 'GRANTED'} ? 'log-success' : 'log-denied'">
+                            SUCCESS
+                        </span>
+                    </td>
+                    <td th:text="${log.employee != null ? log.employee.fullName : 'Unknown'}">Unknown</td>
+                    <td th:text="${log.message}">message</td>
+                    <td th:text="${log.location}">location</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 </div>
 
-<div class="modal fade" id="editUserModal" tabindex="-1">
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true" sec:authorize="hasAuthority('ROLE_ADMIN')">
     <div class="modal-dialog">
         <div class="modal-content">
-
             <div class="modal-header">
-                <h5 class="modal-title">Edit user</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <div class="modal-body">
@@ -180,7 +223,11 @@
 
                 <div class="mb-3">
                     <label class="form-label" for="editRole">Role</label>
-                    <input id="editRole" class="form-control" type="text">
+                    <select id="editRole" class="form-select">
+                        <option value="STAFF">Staff</option>
+                        <option value="TEAM_LEADER">Team Leader</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
                 </div>
 
                 <div class="mb-3">
@@ -189,7 +236,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label" for="editPassword">New password</label>
+                    <label class="form-label" for="editPassword">New Password</label>
                     <input id="editPassword" class="form-control" type="password"
                            placeholder="Leave empty to keep current password">
                 </div>
@@ -217,9 +264,8 @@
 
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveEditBtn">Save changes</button>
+                <button type="button" class="btn btn-primary" id="saveEditBtn">Save Changes</button>
             </div>
-
         </div>
     </div>
 </div>
@@ -229,8 +275,39 @@
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
 <script>
-    const editModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+    const modalElement = document.getElementById('editUserModal');
+    const usersTableBody = document.getElementById('usersTableBody');
+    const editModal = modalElement && window.bootstrap ? new bootstrap.Modal(modalElement) : {
+        show: function () {
+            if (!modalElement) return;
+            modalElement.style.display = 'block';
+            modalElement.removeAttribute('aria-hidden');
+        },
+        hide: function () {
+            if (!modalElement) return;
+            modalElement.style.display = 'none';
+            modalElement.setAttribute('aria-hidden', 'true');
+        }
+    };
     const pageAlert = document.getElementById('pageAlert');
+    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+    if (modalElement && !window.bootstrap) {
+        modalElement.style.display = 'none';
+        const addUserToggle = document.querySelector('[data-bs-target="#addUserForm"]');
+        if (addUserToggle) {
+            addUserToggle.addEventListener('click', function () {
+                document.getElementById('addUserForm').classList.toggle('show');
+            });
+        }
+    }
+
+    function withCsrf(headers) {
+        const nextHeaders = headers || {};
+        nextHeaders[csrfHeader] = csrfToken;
+        return nextHeaders;
+    }
 
     function showAlert(text, ok) {
         pageAlert.textContent = text;
@@ -245,135 +322,332 @@
         return (status === 'SUCCESS' || status === 'GRANTED') ? 'log-success' : 'log-denied';
     }
 
-    function prependLog(log) {
-        const tbody = document.getElementById('logsTableBody');
-        const tr = document.createElement('tr');
-
-        let ts = log.timestamp || '';
-
-        if (typeof ts === 'string') {
-            ts = ts.replace('T', ' ').substring(0, 19);
-        }
-
-        tr.innerHTML =
-            '<td>' + ts + '</td>' +
-            '<td>' + (log.method || '') + '</td>' +
-            '<td><span class="' + statusClass(log.status) + '">' + (log.status || '') + '</span></td>' +
-            '<td>' + (log.employeeName || 'Unknown') + '</td>' +
-            '<td>' + (log.message || '') + '</td>';
-
-        tbody.insertBefore(tr, tbody.firstChild);
+    function displayValue(value) {
+        return value ? value : '-';
     }
 
-    function connectLogsSocket() {
+    function formatTimestamp(timestamp) {
+        if (Array.isArray(timestamp)) {
+            const year = String(timestamp[0]).padStart(4, '0');
+            const month = String(timestamp[1]).padStart(2, '0');
+            const day = String(timestamp[2]).padStart(2, '0');
+            const hour = String(timestamp[3] || 0).padStart(2, '0');
+            const minute = String(timestamp[4] || 0).padStart(2, '0');
+            const second = String(timestamp[5] || 0).padStart(2, '0');
+            return year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second;
+        }
+
+        if (typeof timestamp === 'string') {
+            return timestamp.replace('T', ' ').substring(0, 19);
+        }
+
+        return '';
+    }
+
+    function textCell(value) {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        return cell;
+    }
+
+    function prependLog(log) {
+        const tbody = document.getElementById('logsTableBody');
+        const row = document.createElement('tr');
+        const statusCell = document.createElement('td');
+        const status = document.createElement('span');
+
+        status.className = statusClass(log.status);
+        status.textContent = log.status || '';
+        statusCell.appendChild(status);
+
+        row.appendChild(textCell(formatTimestamp(log.timestamp)));
+        row.appendChild(textCell(log.method || ''));
+        row.appendChild(statusCell);
+        row.appendChild(textCell(log.employeeName || 'Unknown'));
+        row.appendChild(textCell(log.message || ''));
+        row.appendChild(textCell(log.location || ''));
+
+        tbody.prepend(row);
+    }
+
+    function applyUserRowData(row, user) {
+        row.dataset.id = user.id || '';
+        row.dataset.name = user.fullName || '';
+        row.dataset.role = user.role || '';
+        row.dataset.login = user.login || '';
+        row.dataset.nfc = user.nfcUid || '';
+        row.dataset.fp = user.fingerprintId || '';
+        row.dataset.qr = user.qrSecret || '';
+        row.dataset.active = user.active ? 'true' : 'false';
+    }
+
+    function createUserRow(user) {
+        const row = document.createElement('tr');
+        const actionsCell = document.createElement('td');
+        const editButton = document.createElement('button');
+        const deleteButton = document.createElement('button');
+
+        applyUserRowData(row, user);
+
+        row.appendChild(textCell(user.id || ''));
+        row.appendChild(textCell(user.fullName || ''));
+        row.appendChild(textCell(user.role || ''));
+        row.appendChild(textCell(displayValue(user.login)));
+        row.appendChild(textCell(displayValue(user.nfcUid)));
+        row.appendChild(textCell(displayValue(user.fingerprintId)));
+        row.appendChild(textCell(displayValue(user.qrSecret)));
+        row.appendChild(textCell(user.active ? 'Yes' : 'No'));
+
+        editButton.type = 'button';
+        editButton.className = 'btn btn-sm btn-outline-primary btn-edit';
+        editButton.textContent = 'Edit';
+
+        deleteButton.type = 'button';
+        deleteButton.className = 'btn btn-sm btn-outline-danger btn-delete';
+        deleteButton.textContent = 'Delete';
+
+        actionsCell.appendChild(editButton);
+        actionsCell.appendChild(document.createTextNode(' '));
+        actionsCell.appendChild(deleteButton);
+        row.appendChild(actionsCell);
+
+        return row;
+    }
+
+    function prependUser(user) {
+        if (!usersTableBody) {
+            return;
+        }
+
+        const existing = document.querySelector('#usersTableBody tr[data-id="' + user.id + '"]');
+
+        if (existing) {
+            return;
+        }
+
+        usersTableBody.prepend(createUserRow(user));
+    }
+
+    function subscribeSockJs(handlers) {
         const socket = new SockJS('/ws');
         const client = Stomp.over(socket);
 
         client.debug = function () {};
 
         client.connect({}, function () {
-            client.subscribe('/topic/logs', function (msg) {
-                prependLog(JSON.parse(msg.body));
+            Object.keys(handlers).forEach(function (destination) {
+                client.subscribe(destination, function (msg) {
+                    handlers[destination](JSON.parse(msg.body));
+                });
             });
         }, function (err) {
-            console.error('WebSocket error', err);
+            console.error('SockJS WebSocket error', err);
+            subscribeNativeStomp(handlers);
         });
     }
 
-    document.getElementById('usersTableBody').addEventListener('click', function (e) {
-        const row = e.target.closest('tr');
+    function sendStompFrame(socket, command, headers, body) {
+        let frame = command + '\n';
 
-        if (!row) return;
+        Object.keys(headers).forEach(function (name) {
+            frame += name + ':' + headers[name] + '\n';
+        });
 
-        if (e.target.classList.contains('btn-edit')) {
-            document.getElementById('editUserId').value = row.dataset.id;
-            document.getElementById('editFullName').value = row.dataset.name || '';
-            document.getElementById('editRole').value = row.dataset.role || '';
-            document.getElementById('editLogin').value = row.dataset.login || '';
-            document.getElementById('editPassword').value = '';
-            document.getElementById('editNfcUid').value = row.dataset.nfc || '';
-            document.getElementById('editFingerprintId').value = row.dataset.fp || '';
-            document.getElementById('editQrSecret').value = row.dataset.qr || '';
-            document.getElementById('editActive').checked = row.dataset.active === 'true';
+        socket.send(frame + '\n' + (body || '') + '\0');
+    }
 
-            editModal.show();
-        }
+    function parseStompHeaders(lines) {
+        const headers = {};
 
-        if (e.target.classList.contains('btn-delete')) {
-            const id = row.dataset.id;
+        lines.forEach(function (line) {
+            const separator = line.indexOf(':');
 
-            if (!confirm('Are you sure?')) {
-                return;
+            if (separator > -1) {
+                headers[line.substring(0, separator)] = line.substring(separator + 1);
             }
+        });
 
-            fetch('/api/users/' + id, {method: 'DELETE'})
-                .then(function (r) {
-                    if (r.status === 200) {
-                        row.remove();
-                        showAlert('User deleted.', true);
-                    } else {
-                        showAlert('Could not delete user.', false);
-                    }
-                })
-                .catch(function () {
-                    showAlert('Network error.', false);
-                });
+        return headers;
+    }
+
+    function handleNativeStompFrame(socket, handlers, frame) {
+        const separator = frame.indexOf('\n\n');
+
+        if (separator === -1) {
+            return;
         }
-    });
 
-    document.getElementById('saveEditBtn').addEventListener('click', function () {
-        const id = document.getElementById('editUserId').value;
+        const headerLines = frame.substring(0, separator).split('\n');
+        const command = headerLines.shift();
+        const headers = parseStompHeaders(headerLines);
+        const body = frame.substring(separator + 2);
 
-        const body = {
-            fullName: document.getElementById('editFullName').value,
-            role: document.getElementById('editRole').value,
-            login: document.getElementById('editLogin').value,
-            password: document.getElementById('editPassword').value,
-            nfcUid: document.getElementById('editNfcUid').value,
-            fingerprintId: document.getElementById('editFingerprintId').value,
-            qrSecret: document.getElementById('editQrSecret').value,
-            active: document.getElementById('editActive').checked
+        if (command === 'CONNECTED') {
+            Object.keys(handlers).forEach(function (destination, index) {
+                sendStompFrame(socket, 'SUBSCRIBE', {
+                    id: 'sub-' + index,
+                    destination: destination
+                });
+            });
+            return;
+        }
+
+        if (command === 'MESSAGE' && headers.destination && handlers[headers.destination]) {
+            handlers[headers.destination](JSON.parse(body));
+        }
+    }
+
+    // use websocket
+    function subscribeNativeStomp(handlers) {
+        const scheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const socket = new WebSocket(scheme + window.location.host + '/ws-native');
+
+        socket.onopen = function () {
+            sendStompFrame(socket, 'CONNECT', {
+                'accept-version': '1.2',
+                'heart-beat': '0,0'
+            });
         };
 
-        fetch('/api/users/' + id, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body)
-        })
-            .then(function (r) {
-                if (!r.ok) throw new Error('save failed');
-                return r.json();
-            })
-            .then(function (user) {
-                const row = document.querySelector('tr[data-id="' + id + '"]');
+        socket.onmessage = function (event) {
+            event.data.split('\0').forEach(function (frame) {
+                if (frame.trim()) {
+                    handleNativeStompFrame(socket, handlers, frame);
+                }
+            });
+        };
 
-                if (row) {
-                    row.dataset.name = user.fullName;
-                    row.dataset.role = user.role;
-                    row.dataset.login = user.login || '';
-                    row.dataset.nfc = user.nfcUid || '';
-                    row.dataset.fp = user.fingerprintId || '';
-                    row.dataset.qr = user.qrSecret || '';
-                    row.dataset.active = user.active;
+        socket.onerror = function (err) {
+            console.error('Native WebSocket error', err);
+        };
+    }
 
-                    row.cells[1].textContent = user.fullName;
-                    row.cells[2].textContent = user.role;
-                    row.cells[3].textContent = user.login || '—';
-                    row.cells[4].textContent = user.nfcUid || '—';
-                    row.cells[5].textContent = user.fingerprintId || '—';
-                    row.cells[6].textContent = user.qrSecret;
-                    row.cells[7].textContent = user.active ? 'Yes' : 'No';
+    function subscribePanelTopics(handlers) {
+        if (window.SockJS && window.Stomp) {
+            subscribeSockJs(handlers);
+            return;
+        }
+
+        subscribeNativeStomp(handlers);
+    }
+
+    function connectPanelSocket() {
+        const handlers = {'/topic/logs': prependLog};
+
+        if (usersTableBody) {
+            handlers['/topic/users'] = prependUser;
+        }
+
+        subscribePanelTopics(handlers);
+    }
+
+    if (usersTableBody) {
+        usersTableBody.addEventListener('click', function (e) {
+            const button = e.target.closest('button');
+            const row = e.target.closest('tr');
+
+            if (!button || !row) return;
+
+            if (button.classList.contains('btn-edit')) {
+                document.getElementById('editUserId').value = row.dataset.id;
+                document.getElementById('editFullName').value = row.dataset.name || '';
+                document.getElementById('editRole').value = row.dataset.role || '';
+                document.getElementById('editLogin').value = row.dataset.login || '';
+                document.getElementById('editPassword').value = '';
+                document.getElementById('editNfcUid').value = row.dataset.nfc || '';
+                document.getElementById('editFingerprintId').value = row.dataset.fp || '';
+                document.getElementById('editQrSecret').value = row.dataset.qr || '';
+                document.getElementById('editActive').checked = row.dataset.active === 'true';
+
+                editModal.show();
+            }
+
+            if (button.classList.contains('btn-delete')) {
+                const id = row.dataset.id;
+
+                if (!confirm('Are you sure?')) {
+                    return;
                 }
 
-                editModal.hide();
-                showAlert('User updated.', true);
-            })
-            .catch(function () {
-                showAlert('Could not save user.', false);
-            });
-    });
+                fetch('/api/users/' + id, {
+                    method: 'DELETE',
+                    headers: withCsrf({})
+                })
+                    .then(function (r) {
+                        if (r.status === 200) {
+                            row.remove();
+                            showAlert('User deleted.', true);
+                        } else {
+                            showAlert('Could not delete user.', false);
+                        }
+                    })
+                    .catch(function () {
+                        showAlert('Network error.', false);
+                    });
+            }
+        });
 
-    connectLogsSocket();
+        document.getElementById('saveEditBtn').addEventListener('click', function () {
+            const id = document.getElementById('editUserId').value;
+            const body = {
+                fullName: document.getElementById('editFullName').value,
+                role: document.getElementById('editRole').value,
+                login: document.getElementById('editLogin').value,
+                password: document.getElementById('editPassword').value,
+                nfcUid: document.getElementById('editNfcUid').value,
+                fingerprintId: document.getElementById('editFingerprintId').value,
+                qrSecret: document.getElementById('editQrSecret').value,
+                active: document.getElementById('editActive').checked
+            };
+
+            fetch('/api/users/' + id, {
+                method: 'PUT',
+                headers: withCsrf({'Content-Type': 'application/json'}),
+                body: JSON.stringify(body)
+            })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('save failed');
+                    return r.json();
+                })
+                .then(function (user) {
+                    const row = document.querySelector('#usersTableBody tr[data-id="' + id + '"]');
+
+                    if (row) {
+                        applyUserRowData(row, user);
+                        row.cells[1].textContent = user.fullName;
+                        row.cells[2].textContent = user.role;
+                        row.cells[3].textContent = displayValue(user.login);
+                        row.cells[4].textContent = displayValue(user.nfcUid);
+                        row.cells[5].textContent = displayValue(user.fingerprintId);
+                        row.cells[6].textContent = displayValue(user.qrSecret);
+                        row.cells[7].textContent = user.active ? 'Yes' : 'No';
+                    }
+
+                    editModal.hide();
+                    showAlert('User updated.', true);
+                })
+                .catch(function () {
+                    showAlert('Could not save user.', false);
+                });
+        });
+    }
+
+    connectPanelSocket();
+    
+    // qr countdown
+    const timerElement = document.getElementById("timer");
+    if (timerElement) {
+        let secondsLeft = 300;
+        setInterval(() => {
+            secondsLeft--;
+            const minutes = Math.floor(secondsLeft / 60);
+            const seconds = secondsLeft % 60;
+            timerElement.textContent = String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+            if (secondsLeft <= 0) {
+                timerElement.textContent = "Expired";
+            }
+        }, 1000);
+    }
 </script>
 </body>
 </html>

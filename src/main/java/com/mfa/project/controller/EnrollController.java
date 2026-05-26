@@ -21,6 +21,7 @@ public class EnrollController {
         this.employeeService = employeeService;
     }
 
+    // get next id
     @GetMapping("/next-available-id")
     public ResponseEntity<Map<String, Integer>> getNextId() {
         int nextId = employeeService.computeNextFingerprintSlot();
@@ -28,6 +29,7 @@ public class EnrollController {
         return ResponseEntity.ok(Map.of("nextId", nextId));
     }
 
+    // register user
     @PostMapping
     public ResponseEntity<?> register(@Valid @RequestBody EnrollRegisterRequest request) {
         System.out.println("[ENROLL] Received enrollment request from ESP32!");

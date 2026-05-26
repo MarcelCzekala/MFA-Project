@@ -13,9 +13,39 @@ import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
 
+// employee model
 @Entity
 @Table(name = "employees")
 public class Employee {
+
+    public enum Role {
+        ADMIN,
+        TEAM_LEADER,
+        STAFF;
+
+        // parse role
+        public static Role from(String value) {
+            if (value == null || value.isBlank()) {
+                return STAFF;
+            }
+
+            String normalized = value.trim()
+                    .toUpperCase()
+                    .replace("ROLE_", "")
+                    .replace("-", "_")
+                    .replace(" ", "_");
+
+            try {
+                return Role.valueOf(normalized);
+            } catch (IllegalArgumentException ex) {
+                return STAFF;
+            }
+        }
+
+        public String authority() {
+            return "ROLE_" + name();
+        }
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,7 +55,7 @@ public class Employee {
     private String fullName;
 
     @Column(nullable = false)
-    private String role;
+    private String role = Role.STAFF.name();
 
     @Column(unique = true)
     private String nfcUid;
@@ -39,6 +69,7 @@ public class Employee {
     @Column(unique = true)
     private String login;
 
+    @JsonIgnore
     private String password;
 
     @Column(nullable = false)
@@ -56,8 +87,11 @@ public class Employee {
     public void setId(Long id) { this.id = id; }
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public String getRole() { return getRoleEnum().name(); }
+    public void setRole(String role) { this.role = Role.from(role).name(); }
+    public void setRole(Role role) { this.role = role != null ? role.name() : Role.STAFF.name(); }
+    @JsonIgnore
+    public Role getRoleEnum() { return Role.from(role); }
     public String getNfcUid() { return nfcUid; }
     public void setNfcUid(String nfcUid) { this.nfcUid = nfcUid; }
     public String getFingerprintId() { return fingerprintId; }

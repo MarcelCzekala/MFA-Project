@@ -3,13 +3,12 @@ from pyzbar.pyzbar import decode
 import requests
 import time
 
-# Configuration
 SERVER_URL = "http://localhost:8080/api/verify/qr"
-CAMERA_INDEX = 0  # 0 is usually the built-in MacBook webcam
-COOLDOWN_TIME = 3  # Seconds to wait before scanning the same token again
+CAMERA_INDEX = 0
+COOLDOWN_TIME = 3
 
+# scan qr code
 def scan_qr():
-    # Initialize webcam
     cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
         print("Error: Could not open webcam.")
@@ -52,10 +51,10 @@ def scan_qr():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    # Clean up
     cap.release()
     cv2.destroyAllWindows()
 
+# send token
 def send_token_to_backend(token):
     payload = {"token": token}
     try:

@@ -34,12 +34,14 @@ public class VerificationController {
         this.logService = logService;
     }
 
+    // check nfc and fingerprint
     @PostMapping
     public ResponseEntity<VerifyResponse> verifyMfa(@Valid @RequestBody MfaVerifyRequest request) {
         VerifyResponse response = verificationService.verifyMfa(request.getNfcUid(), request.getFingerprintId());
         return ResponseEntity.ok(response);
     }
 
+    // check qr token
     @PostMapping("/qr")
     public ResponseEntity<Map<String, Object>> verifyQrToken(@RequestBody QrVerifyRequest request) {
         System.out.println("[QR SCANNER] Received verification request with token: " + request.getToken());

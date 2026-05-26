@@ -25,6 +25,7 @@ public class UserController {
         this.logService = logService;
     }
 
+    // check nfc
     @GetMapping("/card/{uid}")
     public ResponseEntity<Map<String, Boolean>> checkCard(@PathVariable String uid) {
         Optional<Employee> employeeOpt = employeeService.findByNfcUid(uid);

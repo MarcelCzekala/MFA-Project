@@ -17,6 +17,7 @@ public class VerificationService {
         this.logService = logService;
     }
 
+    // verify mfa
     public VerifyResponse verifyMfa(String nfcUid, String fingerprintId) {
         Optional<Employee> match = employeeService.findByFingerprintAndNfc(fingerprintId, nfcUid);
 
@@ -41,6 +42,7 @@ public class VerificationService {
         return new VerifyResponse(true, "Access granted", employee.getFullName());
     }
 
+    // check card
     public boolean checkCardExists(String nfcUid) {
         return employeeService.findByNfcUid(nfcUid).isPresent();
     }

@@ -8,9 +8,9 @@
 #include <Adafruit_Fingerprint.h>
 #include <HardwareSerial.h>
 
-static const char *WIFI_SSID = "ssid";
-static const char *WIFI_PASSWORD = "password";
-static const char *SERVER_HOST = "host";
+static const char *WIFI_SSID = "x";
+static const char *WIFI_PASSWORD = "x";
+static const char *SERVER_HOST = "x";
 static const uint16_t SERVER_PORT = 8080;
 static const int PIN_RFID_SS = 5;
 static const int PIN_RFID_RST = 14;
@@ -139,6 +139,7 @@ static bool enrollCaptureToSlot(uint8_t bufferIndex) {
   return false;
 }
 
+// check mfa
 static bool httpVerifyMfa(const String &nfcUid, int fingerId, bool &granted, String &msg) {
   granted = false;
   if (WiFi.status() != WL_CONNECTED) return false;
@@ -180,6 +181,7 @@ static bool httpGetNextId(int &nextId) {
   return true;
 }
 
+// enroll user
 static bool httpRegisterUser(int nextId, const String &nfcUid, int fingerId) {
   if (WiFi.status() != WL_CONNECTED) return false;
   String url = String("http://") + SERVER_HOST + ":" + String(SERVER_PORT) + "/api/enroll";
@@ -347,6 +349,7 @@ static void tickClearMemProcess() {
 
 static void tickConfirmReset() { if (joyPressed()) { playFeedback("SUCCESS"); goHome(); delay(500); } }
 
+// reset device
 void checkGlobalReset() {
   bool currentSwState = digitalRead(PIN_JOY_SW);
   if (currentSwState == LOW) {
@@ -375,6 +378,7 @@ void setup() {
   goHome();
 }
 
+// main loop
 void loop() {
   checkGlobalReset();
   maintainWifi();

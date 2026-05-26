@@ -26,6 +26,7 @@ public class QrTokenService {
         this.employeeRepository = employeeRepository;
     }
 
+    // create qr token
     public QrToken generateTokenForEmployee(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
@@ -38,6 +39,7 @@ public class QrTokenService {
         return qrTokenRepository.save(qrToken);
     }
 
+    // encode qr
     public String generateQrBase64(String content) {
         try {
             QRCodeWriter qrCodeWriter = new QRCodeWriter();

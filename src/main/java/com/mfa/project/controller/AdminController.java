@@ -3,64 +3,80 @@ package com.mfa.project.controller;
 import com.mfa.project.dto.EmployeeForm;
 import com.mfa.project.dto.UserUpdateRequest;
 import com.mfa.project.entity.Employee;
-import com.mfa.project.repository.AccessLogRepository;
+import com.mfa.project.service.AccessLogService;
 import com.mfa.project.service.EmployeeService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import java.security.Principal;
+import com.mfa.project.repository.EmployeeRepository;
+import com.mfa.project.service.QrTokenService;
+import com.mfa.project.entity.QrToken;
 
 @Controller
 public class AdminController {
 
     private final EmployeeService employeeService;
-    private final AccessLogRepository accessLogRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final AccessLogService accessLogService;
+    private final QrTokenService qrTokenService;
+    private final EmployeeRepository employeeRepository;
 
     public AdminController(EmployeeService employeeService,
-                           AccessLogRepository accessLogRepository,
-                           SimpMessagingTemplate messagingTemplate) {
+                           AccessLogService accessLogService,
+                           QrTokenService qrTokenService,
+                           EmployeeRepository employeeRepository) {
         this.employeeService = employeeService;
-        this.accessLogRepository = accessLogRepository;
-        this.messagingTemplate = messagingTemplate;
+        this.accessLogService = accessLogService;
+        this.qrTokenService = qrTokenService;
+        this.employeeRepository = employeeRepository;
     }
 
+    // show admin page
     @GetMapping("/admin")
-    public String adminPage(Model model) {
-        model.addAttribute("employees", employeeService.getAllEmployees());
+    public String adminPage(Model model, Principal principal) {
+        addAdminModel(model);
         model.addAttribute("employeeForm", new EmployeeForm());
-        model.addAttribute("logs", accessLogRepository.findAll());
+        
+        if (principal != null) {
+            employeeRepository.findByLogin(principal.getName()).ifPresent(emp -> {
+                QrToken qrToken = qrTokenService.generateTokenForEmployee(emp.getId());
+                String qrContent = "QR_TOKEN:" + qrToken.getToken();
+                String qrBase64 = qrTokenService.generateQrBase64(qrContent);
+                model.addAttribute("employeeId", emp.getId());
+                model.addAttribute("token", qrToken.getToken());
+                model.addAttribute("expiresAt", qrToken.getExpiresAt());
+                model.addAttribute("qrBase64", qrBase64);
+            });
+        }
+        
         return "admin";
     }
 
-    @PostMapping("/admin/employees")
+    // create user
+    @PostMapping({"/admin/users", "/admin/employees"})
     public String createUser(@Valid @ModelAttribute("employeeForm") EmployeeForm form,
                              BindingResult result,
                              Model model) {
         if (result.hasErrors()) {
-            model.addAttribute("employees", employeeService.getAllEmployees());
-            model.addAttribute("logs", accessLogRepository.findAll());
+            addAdminModel(model);
             model.addAttribute("showAddEmployeeForm", true);
             return "admin";
         }
         try {
             employeeService.createEmployee(form);
-            messagingTemplate.convertAndSend("/topic/users", employeeService.getAllEmployees());
         } catch (Exception e) {
             result.rejectValue("login", "error.employeeForm", "Login, NFC UID or Fingerprint ID already exists");
-            model.addAttribute("employees", employeeService.getAllEmployees());
-            model.addAttribute("logs", accessLogRepository.findAll());
+            addAdminModel(model);
             model.addAttribute("showAddEmployeeForm", true);
             return "admin";
         }
         return "redirect:/admin";
     }
 
+    // update user
     @PutMapping("/api/users/{id}")
     @ResponseBody
     public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
@@ -72,6 +88,7 @@ public class AdminController {
         }
     }
 
+    // delete user
     @DeleteMapping("/api/users/{id}")
     @ResponseBody
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
@@ -81,5 +98,10 @@ public class AdminController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    private void addAdminModel(Model model) {
+        model.addAttribute("employees", employeeService.getAllEmployees());
+        model.addAttribute("logs", accessLogService.getAllLogs());
     }
 }
