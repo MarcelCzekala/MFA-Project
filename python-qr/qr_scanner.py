@@ -3,18 +3,18 @@ from pyzbar.pyzbar import decode
 import requests
 import time
 
-SERVER_URL = "http://localhost:8080/api/verify/qr"
+SERVER_URL = "http://localhost:8080/api/verify/camera-scan"
 CAMERA_INDEX = 0
 COOLDOWN_TIME = 3
 
-# scan qr code
 def scan_qr():
+    # init camera stream
     cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
         print("Error: Could not open webcam.")
         return
 
-    print("QR Scanner started. Press 'q' to quit.")
+    print("MFA Dumb Scanner started. Waiting for QR codes... (Press 'q' to quit)")
     last_scanned_token = None
     last_scan_time = 0
 
@@ -54,17 +54,16 @@ def scan_qr():
     cap.release()
     cv2.destroyAllWindows()
 
-# send token
 def send_token_to_backend(token):
+    # send token to backend
     payload = {"token": token}
+    headers = {"X-Hardware-Token": "mfa-hardware-secret-2026"}
     try:
-        print(f"Sending token to backend: {SERVER_URL}...")
-        response = requests.post(SERVER_URL, json=payload, timeout=5)
-
+        response = requests.post(SERVER_URL, json=payload, headers=headers, timeout=5)
         if response.status_code == 200:
-            print(f"Backend Response: {response.json()}")
+            print("Backend Response: Token accepted and user cached.")
         else:
-            print(f"Backend Error: HTTP {response.status_code}")
+            print(f"Backend Error: HTTP {response.status_code} - {response.text}")
     except requests.exceptions.RequestException as e:
         print(f"Network Error: Could not connect to backend. Details: {e}")
 

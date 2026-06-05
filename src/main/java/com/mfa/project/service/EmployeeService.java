@@ -1,5 +1,4 @@
 package com.mfa.project.service;
-
 import com.mfa.project.dto.EmployeeEventDto;
 import com.mfa.project.dto.EmployeeForm;
 import com.mfa.project.dto.EnrollRegisterRequest;
@@ -12,21 +11,17 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
-
 @Service
 public class EmployeeService {
-
     private static final int SLOT_MIN = 1;
     private static final int SLOT_MAX = 127;
     private static final Pattern NUMERIC = Pattern.compile("^\\d+$");
     private final EmployeeRepository employeeRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final SimpMessagingTemplate messagingTemplate;
-
     public EmployeeService(EmployeeRepository employeeRepository,
                            BCryptPasswordEncoder passwordEncoder,
                            SimpMessagingTemplate messagingTemplate) {
@@ -34,18 +29,10 @@ public class EmployeeService {
         this.passwordEncoder = passwordEncoder;
         this.messagingTemplate = messagingTemplate;
     }
-
-    // get all employees
     public List<Employee> getAllEmployees() { return employeeRepository.findAll(Sort.by(Sort.Direction.DESC, "id")); }
-
-    // find by fingerprint
     public Optional<Employee> findByFingerprintId(String fingerprintId) { return employeeRepository.findByFingerprintId(fingerprintId); }
-    // find by nfc
     public Optional<Employee> findByNfcUid(String nfcUid) { return employeeRepository.findByNfcUid(nfcUid); }
-    // find by fingerprint nfc
     public Optional<Employee> findByFingerprintAndNfc(String fingerprintId, String nfcUid) { return employeeRepository.findByFingerprintIdAndNfcUid(fingerprintId, nfcUid); }
-
-    // create employee
     public Employee createEmployee(EmployeeForm form) {
         Employee employee = new Employee();
         employee.setFullName(form.getFullName().trim());
@@ -60,8 +47,6 @@ public class EmployeeService {
         broadcastNewUser(saved);
         return saved;
     }
-
-    // register user
     public Employee registerFromDevice(EnrollRegisterRequest request) {
         Employee employee = new Employee();
         String identifier = StringUtils.hasText(request.getNfcUid()) ? request.getNfcUid().trim() : request.getFingerprintId().trim();
@@ -77,8 +62,6 @@ public class EmployeeService {
         broadcastNewUser(saved);
         return saved;
     }
-
-    // update user
     public Employee updateUser(Long id, UserUpdateRequest request) {
         Employee employee = employeeRepository.findById(id).orElseThrow();
         employee.setFullName(request.getFullName().trim());
@@ -91,14 +74,10 @@ public class EmployeeService {
         if (StringUtils.hasText(request.getPassword())) employee.setPassword(passwordEncoder.encode(request.getPassword()));
         return employeeRepository.save(employee);
     }
-
-    // delete user
     @Transactional
     public void deleteEmployee(Long id) {
         employeeRepository.deleteById(id);
     }
-
-    // get next fingerprint id
     public int computeNextFingerprintSlot() {
         int maxUsed = 0;
         for (Employee e : employeeRepository.findAll()) {
@@ -110,12 +89,8 @@ public class EmployeeService {
         }
         return Math.min(maxUsed + 1, SLOT_MAX);
     }
-
-    // send new user event
     private void broadcastNewUser(Employee employee) {
         messagingTemplate.convertAndSend("/topic/users", EmployeeEventDto.from(employee));
     }
-
-    // handle null
     private static String blankToNull(String value) { return StringUtils.hasText(value) ? value.trim() : null; }
 }

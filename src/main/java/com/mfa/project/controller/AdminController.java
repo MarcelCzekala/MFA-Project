@@ -1,5 +1,4 @@
 package com.mfa.project.controller;
-
 import com.mfa.project.dto.EmployeeForm;
 import com.mfa.project.dto.UserUpdateRequest;
 import com.mfa.project.entity.Employee;
@@ -11,19 +10,17 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.security.Principal;
 import com.mfa.project.repository.EmployeeRepository;
 import com.mfa.project.service.QrTokenService;
 import com.mfa.project.entity.QrToken;
-
 @Controller
 public class AdminController {
-
     private final EmployeeService employeeService;
     private final AccessLogService accessLogService;
     private final QrTokenService qrTokenService;
     private final EmployeeRepository employeeRepository;
-
     public AdminController(EmployeeService employeeService,
                            AccessLogService accessLogService,
                            QrTokenService qrTokenService,
@@ -33,13 +30,10 @@ public class AdminController {
         this.qrTokenService = qrTokenService;
         this.employeeRepository = employeeRepository;
     }
-
-    // show admin page
     @GetMapping("/admin")
     public String adminPage(Model model, Principal principal) {
         addAdminModel(model);
         model.addAttribute("employeeForm", new EmployeeForm());
-        
         if (principal != null) {
             employeeRepository.findByLogin(principal.getName()).ifPresent(emp -> {
                 QrToken qrToken = qrTokenService.generateTokenForEmployee(emp.getId());
@@ -51,11 +45,8 @@ public class AdminController {
                 model.addAttribute("qrBase64", qrBase64);
             });
         }
-        
         return "admin";
     }
-
-    // create user
     @PostMapping({"/admin/users", "/admin/employees"})
     public String createUser(@Valid @ModelAttribute("employeeForm") EmployeeForm form,
                              BindingResult result,
@@ -75,8 +66,6 @@ public class AdminController {
         }
         return "redirect:/admin";
     }
-
-    // update user
     @PutMapping("/api/users/{id}")
     @ResponseBody
     public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
@@ -87,9 +76,8 @@ public class AdminController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
-    // delete user
     @DeleteMapping("/api/users/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseBody
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         try {
@@ -99,7 +87,6 @@ public class AdminController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
     private void addAdminModel(Model model) {
         model.addAttribute("employees", employeeService.getAllEmployees());
         model.addAttribute("logs", accessLogService.getAllLogs());

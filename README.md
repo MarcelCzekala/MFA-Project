@@ -1,35 +1,47 @@
-# MFA Security System
+# Multi-Factor Authentication System
 
-This is my engineering project. It is a Spring Boot backend combined with ESP32 hardware.
+This project is a physical access control system designed to manage entry into different facility zones. It uses an ESP32 to interface with hardware sensors and a Spring Boot backend to verify authentication requests.
 
-## Key Features
+## Hardware Requirements
+- ESP32 Development Board
+- MFRC522 RFID Module
+- Adafruit Fingerprint Sensor
+- Standard USB Web Camera
+- 16x2 I2C LCD Screen
+- Analog Joystick
 
-- Hardware integration (RFID/Fingerprint via ESP32).
-- Dynamic QR Code generation and scanning.
-- Real-time access logs using WebSockets.
-- Role-Based Access Control (Admin, Team Leader, Staff).
-- Location tracking (Entrance A, Document Warehouse).
+## Software Stack
+- Java and Spring Boot (Backend application)
+- C++ (ESP32 hardware logic)
+- Python (QR reading script)
+- MySQL (Data storage)
+- Docker (Environment setup)
 
-## How to run
+## Features / Access Logic
+The system enforces location-based access control based on user roles and multi-factor authentication.
 
-You can start the project using Docker or Maven.
+- **Entrance and Kitchen**: Requires 1FA. Users provide either an RFID card, a fingerprint, or a QR code.
+- **Warehouse**: Requires 2FA (RFID card and fingerprint). Restricted to Team Leader, IT Dept, and Admin roles.
+- **Archive**: Requires 3FA (RFID card, fingerprint, and QR code). Restricted to Team Leader and Admin roles.
 
-### Docker Compose
+## How to Run
 
-You need to have Docker and Docker Compose installed on your computer. Open your terminal in the main project directory and run:
+1. **Start the Backend**
+   Run the database and Spring Boot server using Docker.
+   ```bash
+   docker-compose up -d --build
+   ```
 
-docker compose up --build
+2. **Start the QR Scanner**
+   Run the python script on the computer connected to the webcam.
+   ```bash
+   cd python-qr
+   source venv/bin/activate
+   pip install -r requirements.txt
+   python3 qr_scanner.py
+   ```
 
-This starts the backend server and the MySQL database. You can open the admin panel in your browser at http://localhost:8080.
-
-The database details are:
-- Port: 3306
-- User: mfa_user
-- Password: mfa_pass
-
-### Maven
-
-If you want to run the code without Docker for the backend, you can use Maven. Make sure your database is running first. Use these commands:
-
-mvn clean install
-mvn spring-boot:run
+3. **Deploy the ESP32 Code**
+   Open `esp32/mfa_unified/mfa_unified.ino` in the Arduino IDE.
+   Update the Wi-Fi credentials and server IP address variables at the top of the file.
+   Compile and upload to the ESP32.

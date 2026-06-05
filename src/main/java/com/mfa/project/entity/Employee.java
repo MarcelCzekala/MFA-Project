@@ -1,5 +1,4 @@
 package com.mfa.project.entity;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.CascadeType;
@@ -12,77 +11,58 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
-
-// employee model
 @Entity
 @Table(name = "employees")
 public class Employee {
-
     public enum Role {
         ADMIN,
         TEAM_LEADER,
+        IT_DEPT,
         STAFF;
-
-        // parse role
         public static Role from(String value) {
             if (value == null || value.isBlank()) {
                 return STAFF;
             }
-
             String normalized = value.trim()
                     .toUpperCase()
                     .replace("ROLE_", "")
                     .replace("-", "_")
                     .replace(" ", "_");
-
             try {
                 return Role.valueOf(normalized);
             } catch (IllegalArgumentException ex) {
                 return STAFF;
             }
         }
-
         public String authority() {
             return "ROLE_" + name();
         }
     }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @Column(nullable = false)
     private String fullName;
-
     @Column(nullable = false)
     private String role = Role.STAFF.name();
-
     @Column(unique = true)
     private String nfcUid;
-
     @Column(unique = true)
     private String fingerprintId;
-
     @Column(unique = true)
     private String qrSecret;
-
     @Column(unique = true)
     private String login;
-
     @JsonIgnore
     private String password;
-
     @Column(nullable = false)
     private boolean isActive = true;
-
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<AccessLog> logs = new ArrayList<>();
-
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<QrToken> qrTokens = new ArrayList<>();
-
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getFullName() { return fullName; }

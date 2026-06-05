@@ -1,5 +1,4 @@
 package com.mfa.project.config;
-
 import com.mfa.project.entity.Employee;
 import com.mfa.project.repository.EmployeeRepository;
 import org.springframework.context.annotation.Bean;
@@ -15,34 +14,26 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.util.StringUtils;
-
 import java.util.List;
-
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
-
-    // security config
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    AuthenticationSuccessHandler authenticationSuccessHandler) throws Exception {
         http
-                .csrf(csrf -> csrf.ignoringRequestMatchers(
-                        "/api/verify/**",
-                        "/api/enroll/**",
-                        "/ws-native",
-                        "/ws-native/**",
-                        "/ws/**"
-                ))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/login", "/error", "/employee/**").permitAll()
+                        .requestMatchers("/", "/login", "/error", "/employee/**", "/css/**", "/js/**", "/images/**").permitAll()
                         .requestMatchers("/api/verify/**", "/api/enroll/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/admin/users", "/admin/users/**", "/admin/employees", "/admin/employees/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/admin/users", "/admin/users/**", "/admin/employees", "/admin/employees/**").hasAnyRole("ADMIN", "IT_DEPT")
+                        .requestMatchers(HttpMethod.PUT, "/api/users/**").hasAnyRole("ADMIN", "IT_DEPT")
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users/**", "/admin/users/**", "/admin/employees/**").hasRole("ADMIN")
-                        .requestMatchers("/api/logs/**", "/ws-native", "/ws-native/**", "/ws/**").hasAnyRole("ADMIN", "TEAM_LEADER")
-                        .requestMatchers("/admin", "/admin/**").hasAnyRole("ADMIN", "TEAM_LEADER", "STAFF")
-                        .anyRequest().permitAll()
+                        .requestMatchers("/api/users/**", "/admin/users/**", "/admin/employees/**").hasAnyRole("ADMIN", "IT_DEPT")
+                        .requestMatchers("/api/logs/**", "/ws-native", "/ws-native/**", "/ws/**").hasAnyRole("ADMIN", "TEAM_LEADER", "IT_DEPT")
+                        .requestMatchers("/admin", "/admin/**").hasAnyRole("ADMIN", "TEAM_LEADER", "STAFF", "IT_DEPT")
+                        .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
@@ -54,11 +45,8 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/login?logout")
                         .permitAll()
                 );
-
         return http.build();
     }
-
-    // get user
     @Bean
     public UserDetailsService userDetailsService(EmployeeRepository employeeRepository) {
         return username -> {
@@ -66,7 +54,6 @@ public class SecurityConfig {
                     .filter(Employee::isActive)
                     .filter(user -> StringUtils.hasText(user.getPassword()))
                     .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
             return User.withUsername(employee.getLogin())
                     .password(employee.getPassword())
                     .roles(employee.getRoleEnum().name())
@@ -74,20 +61,16 @@ public class SecurityConfig {
                     .build();
         };
     }
-
-    // redirect after login
     @Bean
     public AuthenticationSuccessHandler authenticationSuccessHandler() {
         return (request, response, authentication) -> {
             if (authentication == null) {
                 throw new AuthenticationCredentialsNotFoundException("Authentication is required");
             }
-
             String targetUrl = "/admin";
             response.sendRedirect(request.getContextPath() + targetUrl);
         };
     }
-
     private static boolean hasAnyAuthority(Authentication authentication, String... authorities) {
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
