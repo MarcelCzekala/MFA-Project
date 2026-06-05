@@ -2,13 +2,31 @@
 
 This project is a physical access control system designed to manage entry into different facility zones. It uses an ESP32 to interface with hardware sensors and a Spring Boot backend to verify authentication requests.
 
-## Hardware Requirements
-- ESP32 Development Board
-- MFRC522 RFID Module
-- Adafruit Fingerprint Sensor
-- Standard USB Web Camera
-- 16x2 I2C LCD Screen
-- Analog Joystick
+## Wiring diagram
+
+<img width="3718" height="1494" alt="mfa-1" src="https://github.com/user-attachments/assets/f528029c-eb50-4eeb-bcc5-cf9e5cb56149" />
+
+
+### Hardware Components
+
+**Main Board & Modules:**
+* ESP32 Development Board (ESP32-WROOM-32 / DEVKITV1)
+* MFRC522 RFID Reader Module
+* AS608 Optical Fingerprint Scanner
+* LCD Display with I2C Adapter
+* KY-023 Analog Joystick Module
+* Buzzer module
+
+**Passive Components & Indicators:**
+* 2x LEDs (1x Green, 1x Red)
+* 2x 330Ω Resistors (Current limiting for LEDs)
+* Decoupling Capacitors (Ceramic):
+  * 5x 100nF
+* Decoupling Capacitors (Electrolytic for power rail stability):
+  * 1x 47μF
+  * 1x 220μF
+  * 2x 470μF
+  * 1x 1000μF
 
 ## Software Stack
 - Java and Spring Boot (Backend application)
